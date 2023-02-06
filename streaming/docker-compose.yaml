@@ -1,0 +1,56 @@
+# This docker-compose file defines a multi-container application composed of:
+# 1. two Spark 3.2.1 containers working as a Spark cluster with a web panel listening on port 8080
+# 2. a data-source container that generates a stream of random integers
+# 3. a webapp container running a Flask web application for visualization on port 5000
+# 4. a redis container for data storage
+
+version: "2"
+
+services:
+  spark:
+    image: eecs4415/spark
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    ports:
+      - "8080:8080"
+      - "4040:4040"
+      - "4041:4041"
+    volumes:
+      - ../streaming:/streaming
+  spark-worker:
+    image: eecs4415/spark
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    ports:
+      - "28081:8081"
+      - "24040:4040"
+      - "24041:4041"
+    volumes:
+      - ../streaming:/streaming
+  data-source:
+    image: eecs4415/python
+    environment:
+      - TOKEN=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
+    volumes:
+      - ../streaming:/streaming
+    command: python3.9 -u /streaming/data_source.py
+  webapp:
+    image: eecs4415/python
+    volumes:
+      - ../streaming:/streaming
+    ports:
+      - "5000:5000"
+    command: /streaming/run-flask.sh
+  redis:
+    image: redis
